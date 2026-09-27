@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">GameNotes</string>
+    <string name="app_version_notice">مفكرة الألعاب الذكية | الإصدار 1.4.1</string>
+    <string name="settings_title">إعدادات GameNotes</string>
+    <string name="settings_subtitle">تخصيص اللغة والمظهر والذكاء الاصطناعي</string>
+    <string name="language_section_title">لغة التطبيق</string>
+    <string name="language_section_subtitle">التبديل الفوري بين العربية والإنجليزية</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_english">English</string>
+    <string name="tab_all">الكل</string>
+    <string name="add_new_tab">إضافة تبويب جديد</string>
+    <string name="search_placeholder">بحث في الملاحظات والمهام...</string>
+    <string name="custom_text_color">لون النصوص والشريط العلوي:</string>
+    <string name="custom_bg_color">لون الخلفية الأساسية:</string>
+    <string name="amoled_black">أسود عميق (AMOLED)</string>
+    <string name="reset_defaults">استعادة الألوان الافتراضية</string>
+    <string name="floating_overlay">الأداة العائمة (Overlay)</string>
+    <string name="trash_title">سلة المهملات</string>
+    <string name="trash_subtitle">استعادة الملاحظات المحذوفة أو تفريغ السلة</string>
+    <string name="ai_gemini_title">الذكاء الاصطناعي (Gemini)</string>
+    <string name="ai_gemini_subtitle">أدخل مفتاحك الخاص لتفعيل ميزات الذكاء الاصطناعي واختيار النموذج</string>
+    <string name="mini_task_list_title">قائمة المهام المصغرة</string>
+    <string name="backup_restore_title">النسخ الاحتياطي والاستعادة</string>
+    <string name="backup_button">نسخ احتياطي (ZIP)</string>
+    <string name="restore_button">استعادة</string>
+    <string name="cancel">إلغاء</string>
+    <string name="delete">حذف</string>
+    <string name="confirm">تأكيد</string>
+    <string name="save">حفظ</string>
+</resources>

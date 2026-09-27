@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1011202203096",
+    "project_id": "games-notes",
+    "storage_bucket": "games-notes.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1011202203096:android:9cb9818a8bda255b2166ad",
+        "android_client_info": {
+          "package_name": "com.spinel.gamenotes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4NjFAUqRDesRMIbWK0fRhvRutEXB-NXA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1011202203096:android:f7fcdfe3f6c1fc642166ad",
+        "android_client_info": {
+          "package_name": "com.spinel.gamesnotes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4NjFAUqRDesRMIbWK0fRhvRutEXB-NXA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

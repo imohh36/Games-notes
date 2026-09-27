@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">GameNotes</string>
+    <string name="app_version_notice">Smart Gaming Notes | v1.4.1</string>
+    <string name="settings_title">GameNotes Settings</string>
+    <string name="settings_subtitle">Customize language, appearance, and AI assistant</string>
+    <string name="language_section_title">App Language</string>
+    <string name="language_section_subtitle">Instant switch between English and Arabic</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_english">English</string>
+    <string name="tab_all">All</string>
+    <string name="add_new_tab">Add New Tab</string>
+    <string name="search_placeholder">Search notes and tasks...</string>
+    <string name="custom_text_color">Text &amp; Top Bar Color:</string>
+    <string name="custom_bg_color">Main Background Color:</string>
+    <string name="amoled_black">Deep Black (AMOLED)</string>
+    <string name="reset_defaults">Reset to Default Colors</string>
+    <string name="floating_overlay">Floating Tool (Overlay)</string>
+    <string name="trash_title">Trash</string>
+    <string name="trash_subtitle">Restore deleted notes or empty trash</string>
+    <string name="ai_gemini_title">Artificial Intelligence (Gemini)</string>
+    <string name="ai_gemini_subtitle">Enter your key to unlock AI features and select a model</string>
+    <string name="mini_task_list_title">Mini Task List</string>
+    <string name="backup_restore_title">Backup &amp; Restore</string>
+    <string name="backup_button">Backup (ZIP)</string>
+    <string name="restore_button">Restore</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="confirm">Confirm</string>
+    <string name="save">Save</string>
+</resources>
