@@ -25,17 +25,15 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # --- تجهيز وبناء النسخة المجانية (بإعلانات) ---
+      - name: Set Package Name to Free (gamesnotes)
+        run: sed -i 's/applicationId = ".*/applicationId = "com.spinel.gamesnotes"/g' app/build.gradle.kts
+
       - name: Build Free APK (With Ads)
         run: ./gradlew assembleRelease -PisPersonal=false
 
       - name: Rename Free APK
         run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/GameNotes-Free.apk
-
-      - name: Build Pro APK (No Ads)
-        run: ./gradlew assembleRelease -PisPersonal=true
-
-      - name: Rename Pro APK
-        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/GameNotes-Pro.apk
 
       - name: Build Free AAB (For Play Store)
         run: ./gradlew bundleRelease -PisPersonal=false
@@ -43,6 +41,21 @@ jobs:
       - name: Rename Free AAB
         run: mv app/build/outputs/bundle/release/app-release.aab app/build/outputs/bundle/release/GameNotes-Free.aab
 
+      # --- تنظيف الملفات المؤقتة لتجنب تداخل النسخ ---
+      - name: Clean Build Cache
+        run: ./gradlew clean
+
+      # --- تجهيز وبناء النسخة الشخصية (بدون إعلانات) ---
+      - name: Set Package Name to Pro (gamenotes)
+        run: sed -i 's/applicationId = ".*/applicationId = "com.spinel.gamenotes"/g' app/build.gradle.kts
+
+      - name: Build Pro APK (No Ads)
+        run: ./gradlew assembleRelease -PisPersonal=true
+
+      - name: Rename Pro APK
+        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/GameNotes-Pro.apk
+
+      # --- رفع جميع الملفات النهائية ---
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
