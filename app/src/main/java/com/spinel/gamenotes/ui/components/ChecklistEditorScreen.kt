@@ -89,7 +89,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.spinel.gamenotes.data.GameNote
 import com.spinel.gamenotes.data.NoteTag
 import com.spinel.gamenotes.data.NoteType
@@ -194,7 +193,10 @@ fun ChecklistEditorScreen(
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val density = androidx.compose.ui.platform.LocalDensity.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val isKeyboardOpen = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(density) > 0
+    val imeInsets = androidx.compose.foundation.layout.WindowInsets.ime
+    val isKeyboardOpen by androidx.compose.runtime.remember(density, imeInsets) {
+        androidx.compose.runtime.derivedStateOf { imeInsets.getBottom(density) > 0 }
+    }
     val isLandscapeKeyboard = isLandscape && isKeyboardOpen
 
     // Progress metrics

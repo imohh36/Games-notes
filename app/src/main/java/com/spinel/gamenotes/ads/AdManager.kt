@@ -34,8 +34,8 @@ object AdManager : Application.ActivityLifecycleCallbacks, DefaultLifecycleObser
 
     // Production Google AdMob Ad Unit IDs
     const val TEST_BANNER_AD_ID = "ca-app-pub-9118481973136364/9509397697"
-    const val TEST_INTERSTITIAL_AD_ID = "ca-app-pub-9118481973136364/9852178475"
-    const val TEST_APP_OPEN_AD_ID = "ca-app-pub-9118481973136364/4720105444"
+    const val TEST_INTERSTITIAL_AD_ID = "ca-app-pub-9118481973136364/4720105444"
+    const val TEST_APP_OPEN_AD_ID = "ca-app-pub-3940256099942544/9257395921"
 
     private var currentActivity: Activity? = null
     private var isColdStart = true

@@ -509,29 +509,30 @@ fun NoteCard(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 3.dp)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = ripple(bounded = true),
-                                                onClick = { onToggleTodo(block.id) }
-                                            )
+                                            .padding(vertical = 2.dp)
                                     ) {
-                                        Checkbox(
-                                            checked = block.isChecked,
-                                            onCheckedChange = { onToggleTodo(block.id) },
+                                        Box(
                                             modifier = Modifier
-                                                .padding(end = 6.dp)
+                                                .size(48.dp)
                                                 .clickable(
                                                     interactionSource = remember { MutableInteractionSource() },
-                                                    indication = ripple(bounded = false, radius = 20.dp),
-                                                    onClick = { onToggleTodo(block.id) }
-                                                ),
-                                            colors = CheckboxDefaults.colors(
-                                                checkedColor = MaterialTheme.colorScheme.primary,
-                                                uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                checkmarkColor = MaterialTheme.colorScheme.onPrimary
+                                                    indication = ripple(bounded = false, radius = 24.dp)
+                                                ) {
+                                                    onToggleTodo(block.id)
+                                                }
+                                                .testTag("note_checkbox_${block.id}"),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Checkbox(
+                                                checked = block.isChecked,
+                                                onCheckedChange = null,
+                                                colors = CheckboxDefaults.colors(
+                                                    checkedColor = MaterialTheme.colorScheme.primary,
+                                                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                    checkmarkColor = MaterialTheme.colorScheme.onPrimary
+                                                )
                                             )
-                                        )
+                                        }
                                         Text(
                                             text = block.text,
                                             style = MaterialTheme.typography.bodySmall,
@@ -539,7 +540,14 @@ fun NoteCard(
                                             textDecoration = if (block.isChecked) TextDecoration.LineThrough else TextDecoration.None,
                                             maxLines = if (isExpanded) Int.MAX_VALUE else 2,
                                             overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = ripple(bounded = true)
+                                                ) {
+                                                    onToggleTodo(block.id)
+                                                }
                                         )
                                     }
                                 }
@@ -596,29 +604,30 @@ fun NoteCard(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 3.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = true),
-                                    onClick = { onToggleTodo(todo.id) }
-                                )
+                                .padding(vertical = 2.dp)
                         ) {
-                            Checkbox(
-                                checked = todo.isDone,
-                                onCheckedChange = { onToggleTodo(todo.id) },
+                            Box(
                                 modifier = Modifier
-                                    .padding(end = 6.dp)
+                                    .size(48.dp)
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
-                                        indication = ripple(bounded = false, radius = 20.dp),
-                                        onClick = { onToggleTodo(todo.id) }
-                                    ),
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = MaterialTheme.colorScheme.primary,
-                                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    checkmarkColor = MaterialTheme.colorScheme.onPrimary
+                                        indication = ripple(bounded = false, radius = 24.dp)
+                                    ) {
+                                        onToggleTodo(todo.id)
+                                    }
+                                    .testTag("note_legacy_checkbox_${todo.id}"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Checkbox(
+                                    checked = todo.isDone,
+                                    onCheckedChange = null,
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = MaterialTheme.colorScheme.primary,
+                                        uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        checkmarkColor = MaterialTheme.colorScheme.onPrimary
+                                    )
                                 )
-                            )
+                            }
                             Text(
                                 text = todo.text,
                                 style = MaterialTheme.typography.bodySmall,
@@ -626,7 +635,14 @@ fun NoteCard(
                                 textDecoration = if (todo.isDone) TextDecoration.LineThrough else TextDecoration.None,
                                 maxLines = if (isExpanded) Int.MAX_VALUE else 2,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = ripple(bounded = true)
+                                    ) {
+                                        onToggleTodo(todo.id)
+                                    }
                             )
                         }
                     }

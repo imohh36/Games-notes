@@ -49,6 +49,8 @@ data class DocumentBlock(
             )
         }
 
+        private val jsonListCache = android.util.LruCache<String, List<DocumentBlock>>(200)
+
         fun listToJson(blocks: List<DocumentBlock>): String {
             val array = JSONArray()
             blocks.forEach { array.put(it.toJson()) }
@@ -56,7 +58,8 @@ data class DocumentBlock(
         }
 
         fun jsonToList(json: String): List<DocumentBlock> {
-            if (json.isBlank()) return emptyList()
+            if (json.isBlank() || json == "[]") return emptyList()
+            jsonListCache.get(json)?.let { return it }
             val list = mutableListOf<DocumentBlock>()
             try {
                 val array = JSONArray(json)
@@ -66,6 +69,7 @@ data class DocumentBlock(
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+            jsonListCache.put(json, list)
             return list
         }
     }

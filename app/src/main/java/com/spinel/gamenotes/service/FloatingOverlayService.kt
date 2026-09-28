@@ -793,7 +793,8 @@ class FloatingOverlayService : Service() {
             halfScreenWidth,
             WindowManager.LayoutParams.MATCH_PARENT,
             layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             PixelFormat.TRANSLUCENT
         ).apply {
@@ -890,7 +891,20 @@ class FloatingOverlayService : Service() {
                                             }
                                         }
                                     },
-                                    onSetFocusable = { _ -> },
+                                    onSetFocusable = { focusable ->
+                                        panelParams?.let { params ->
+                                            val currentFlags = params.flags
+                                            val newFlags = if (focusable) {
+                                                currentFlags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+                                            } else {
+                                                currentFlags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                            }
+                                            if (currentFlags != newFlags) {
+                                                params.flags = newFlags
+                                                safeUpdateView(panelView, params)
+                                            }
+                                        }
+                                    },
                                     onOpenInFullApp = { noteId ->
                                         try {
                                             val intent = Intent(this@FloatingOverlayService, MainActivity::class.java).apply {
@@ -2079,7 +2093,6 @@ fun FloatingOverlayContent(
                             onNavigateToList()
                         },
                         onSave = { updatedNote ->
-                            focusManager.clearFocus(force = true)
                             coroutineScope.launch {
                                 try {
                                     repository.updateNote(updatedNote)
@@ -2087,7 +2100,6 @@ fun FloatingOverlayContent(
                                     Log.e("FloatingOverlayService", "Error updating note", e)
                                 }
                             }
-                            onNavigateToList()
                         },
                         onAskGemini = { n ->
                             val promptContext = buildString {
@@ -2122,7 +2134,6 @@ fun FloatingOverlayContent(
                             onNavigateToList()
                         },
                         onSave = { updatedNote ->
-                            focusManager.clearFocus(force = true)
                             coroutineScope.launch {
                                 try {
                                     repository.updateNote(updatedNote)
@@ -2130,7 +2141,6 @@ fun FloatingOverlayContent(
                                     Log.e("FloatingOverlayService", "Error updating note", e)
                                 }
                             }
-                            onNavigateToList()
                         },
                         onAskGemini = { n ->
                             geminiInitialPrompt = buildString {
@@ -2160,7 +2170,6 @@ fun FloatingOverlayContent(
                             onNavigateToList()
                         },
                         onSave = { newNote ->
-                            focusManager.clearFocus(force = true)
                             coroutineScope.launch {
                                 try {
                                     val id = repository.insertNote(newNote)
@@ -2171,7 +2180,6 @@ fun FloatingOverlayContent(
                                     Log.e("FloatingOverlayService", "Error inserting checklist", e)
                                 }
                             }
-                            onNavigateToList()
                         },
                         onAskGemini = { n ->
                             geminiInitialPrompt = n.title
@@ -2190,7 +2198,6 @@ fun FloatingOverlayContent(
                             onNavigateToList()
                         },
                         onSave = { newNote ->
-                            focusManager.clearFocus(force = true)
                             coroutineScope.launch {
                                 try {
                                     repository.insertNote(newNote)
@@ -2198,7 +2205,6 @@ fun FloatingOverlayContent(
                                     Log.e("FloatingOverlayService", "Error inserting note", e)
                                 }
                             }
-                            onNavigateToList()
                         },
                         onAskGemini = { n ->
                             geminiInitialPrompt = buildString {
@@ -2398,60 +2404,70 @@ fun FloatingOverlayContent(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(notes, key = { it.id }, contentType = { "note_card" }) { note ->
-                        // NoteCard with click-to-view in half-screen overlay!
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { 
-                                    onNavigateToViewNote(note)
-                                },
-                            color = Color.Transparent
-                        ) {
-                            NoteCard(
-                                note = note,
-                                isCompact = true,
-                                activeInternalTabIndex = noteActiveTabs[note.id] ?: (if (pinnedNoteId == note.id) pinnedTabIndex else 0),
-                                onTabSelected = { tabIdx ->
-                                    noteActiveTabs = noteActiveTabs + (note.id to tabIdx)
-                                },
-                                onToggleTodo = { todoId ->
-                                    coroutineScope.launch {
-                                        try {
-                                            repository.toggleTodoItem(note.id, todoId)
-                                        } catch (e: Exception) {
-                                            Log.e("OverlayContent", "Error toggling todo", e)
+                    items(notes, key = { it.id }, contentType = { it.noteType }) { note ->
+                        NoteCard(
+                            note = note,
+                            isCompact = true,
+                            activeInternalTabIndex = noteActiveTabs[note.id] ?: (if (pinnedNoteId == note.id) pinnedTabIndex else 0),
+                            onTabSelected = { tabIdx ->
+                                noteActiveTabs = noteActiveTabs + (note.id to tabIdx)
+                            },
+                            onToggleTodo = { todoId ->
+                                coroutineScope.launch {
+                                    try {
+                                        repository.toggleTodoItem(note.id, todoId)
+                                    } catch (e: Exception) {
+                                        Log.e("OverlayContent", "Error toggling todo", e)
+                                    }
+                                }
+                            },
+                            onPinAsMiniWidget = { n ->
+                                onSelectTodoList(n.id)
+                            },
+                            onAskGemini = { n ->
+                                val noteContextText = buildString {
+                                    append(n.title)
+                                    if (n.content.isNotBlank()) append("\n").append(n.content)
+                                }
+                                geminiInitialPrompt = noteContextText
+                                geminiNoteTitle = n.title
+                                geminiGameTag = n.gameTag
+                                isGeminiActive = true
+                            },
+                            onEdit = { n ->
+                                // Open in-overlay editor directly without leaving the game
+                                onNavigateToViewNote(n)
+                            },
+                            onDelete = { n ->
+                                // In-layout delete confirmation (no AlertDialog freeze!)
+                                notePendingDelete = n
+                            },
+                            onImageEdited = { n, oldUri, newUri ->
+                                coroutineScope.launch {
+                                    try {
+                                        val updatedImageUris = n.imageUris.map { if (it == oldUri) newUri else it }
+                                        val updatedBlocksJson = if (n.blocksJson.isNotBlank() && n.blocksJson != "[]") {
+                                            try {
+                                                val blocks = DocumentBlock.jsonToList(n.blocksJson)
+                                                val newBlocks = blocks.map { b ->
+                                                    if (b.type == BlockType.IMAGE) {
+                                                        var u = b
+                                                        if (b.imageUri == oldUri) u = u.copy(imageUri = newUri)
+                                                        if (b.secondImageUri == oldUri) u = u.copy(secondImageUri = newUri)
+                                                        u
+                                                    } else b
+                                                }
+                                                DocumentBlock.listToJson(newBlocks)
+                                            } catch (_: Exception) {
+                                                n.blocksJson
+                                            }
+                                        } else {
+                                            n.blocksJson
                                         }
-                                    }
-                                },
-                                onPinAsMiniWidget = { n ->
-                                    onSelectTodoList(n.id)
-                                },
-                                onAskGemini = { n ->
-                                    val noteContextText = buildString {
-                                        append(n.title)
-                                        if (n.content.isNotBlank()) append("\n").append(n.content)
-                                    }
-                                    geminiInitialPrompt = noteContextText
-                                    geminiNoteTitle = n.title
-                                    geminiGameTag = n.gameTag
-                                    isGeminiActive = true
-                                },
-                                onEdit = { n ->
-                                    // Open in-overlay editor directly without leaving the game
-                                    onNavigateToViewNote(n)
-                                },
-                                onDelete = { n ->
-                                    // In-layout delete confirmation (no AlertDialog freeze!)
-                                    notePendingDelete = n
-                                },
-                                onImageEdited = { n, oldUri, newUri ->
-                                    coroutineScope.launch {
-                                        try {
-                                            val updatedImageUris = n.imageUris.map { if (it == oldUri) newUri else it }
-                                            val updatedBlocksJson = if (n.blocksJson.isNotBlank() && n.blocksJson != "[]") {
+                                        val updatedInternalTabs = n.internalTabs.map { tab ->
+                                            if (tab.blocksJson.isNotBlank() && tab.blocksJson != "[]") {
                                                 try {
-                                                    val blocks = DocumentBlock.jsonToList(n.blocksJson)
+                                                    val blocks = DocumentBlock.jsonToList(tab.blocksJson)
                                                     val newBlocks = blocks.map { b ->
                                                         if (b.type == BlockType.IMAGE) {
                                                             var u = b
@@ -2460,25 +2476,24 @@ fun FloatingOverlayContent(
                                                             u
                                                         } else b
                                                     }
-                                                    DocumentBlock.listToJson(newBlocks)
+                                                    tab.copy(blocksJson = DocumentBlock.listToJson(newBlocks))
                                                 } catch (_: Exception) {
-                                                    n.blocksJson
+                                                    tab
                                                 }
-                                            } else {
-                                                n.blocksJson
-                                            }
-                                            repository.updateNote(n.copy(
-                                                imageUris = updatedImageUris,
-                                                blocksJson = updatedBlocksJson,
-                                                updatedAt = System.currentTimeMillis()
-                                            ))
-                                        } catch (e: Exception) {
-                                            Log.e("OverlayContent", "Error updating note image", e)
+                                            } else tab
                                         }
+                                        repository.updateNote(n.copy(
+                                            imageUris = updatedImageUris,
+                                            blocksJson = updatedBlocksJson,
+                                            internalTabs = updatedInternalTabs,
+                                            updatedAt = System.currentTimeMillis()
+                                        ))
+                                    } catch (e: Exception) {
+                                        Log.e("OverlayContent", "Error updating note image", e)
                                     }
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
             }

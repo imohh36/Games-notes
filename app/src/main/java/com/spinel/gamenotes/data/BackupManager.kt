@@ -255,6 +255,8 @@ object BackupManager {
                 } else if (extractedDb != null) {
                     // Open extracted DB as a secondary database to read notes and merge without wiping existing notes
                     val tempDb = androidx.room.Room.databaseBuilder(context, AppDatabase::class.java, extractedDb.absolutePath)
+                        .fallbackToDestructiveMigration()
+                        .fallbackToDestructiveMigrationOnDowngrade()
                         .build()
                     try {
                         val backupNotes = tempDb.gameNoteDao().getAllNotesDirect()
@@ -278,9 +280,63 @@ object BackupManager {
                                 val localFile = File(localImagesDir, fName)
                                 if (localFile.exists()) Uri.fromFile(localFile).toString() else rawUri
                             }
+
+                            // Resolve paths inside blocksJson
+                            val resolvedBlocksJson = if (note.blocksJson.isNotBlank() && note.blocksJson != "[]") {
+                                try {
+                                    val blocks = DocumentBlock.jsonToList(note.blocksJson)
+                                    val updated = blocks.map { b ->
+                                        if (b.type == BlockType.IMAGE) {
+                                            var u = b
+                                            if (b.imageUri.isNotBlank()) {
+                                                val fn = b.imageUri.substringAfterLast("/")
+                                                val f = File(localImagesDir, fn)
+                                                if (f.exists()) u = u.copy(imageUri = Uri.fromFile(f).toString())
+                                            }
+                                            if (b.secondImageUri.isNotBlank()) {
+                                                val fn = b.secondImageUri.substringAfterLast("/")
+                                                val f = File(localImagesDir, fn)
+                                                if (f.exists()) u = u.copy(secondImageUri = Uri.fromFile(f).toString())
+                                            }
+                                            u
+                                        } else b
+                                    }
+                                    DocumentBlock.listToJson(updated)
+                                } catch (_: Exception) { note.blocksJson }
+                            } else note.blocksJson
+
+                            // Resolve paths inside internalTabs
+                            val resolvedInternalTabs = note.internalTabs.map { tab ->
+                                if (tab.blocksJson.isNotBlank() && tab.blocksJson != "[]") {
+                                    try {
+                                        val blocks = DocumentBlock.jsonToList(tab.blocksJson)
+                                        val updated = blocks.map { b ->
+                                            if (b.type == BlockType.IMAGE) {
+                                                var u = b
+                                                if (b.imageUri.isNotBlank()) {
+                                                    val fn = b.imageUri.substringAfterLast("/")
+                                                    val f = File(localImagesDir, fn)
+                                                    if (f.exists()) u = u.copy(imageUri = Uri.fromFile(f).toString())
+                                                }
+                                                if (b.secondImageUri.isNotBlank()) {
+                                                    val fn = b.secondImageUri.substringAfterLast("/")
+                                                    val f = File(localImagesDir, fn)
+                                                    if (f.exists()) u = u.copy(secondImageUri = Uri.fromFile(f).toString())
+                                                }
+                                                u
+                                            } else b
+                                        }
+                                        tab.copy(blocksJson = DocumentBlock.listToJson(updated))
+                                    } catch (_: Exception) { tab }
+                                } else tab
+                            }
+
                             note.copy(
                                 id = 0,
-                                imageUris = resolvedImageUris
+                                isDeleted = false,
+                                imageUris = resolvedImageUris,
+                                blocksJson = resolvedBlocksJson,
+                                internalTabs = resolvedInternalTabs
                             )
                         }
 
@@ -717,7 +773,7 @@ object BackupManager {
                         internalTabs = internalTabsList,
                         tags = tagsList,
                         isPinned = obj.optBoolean("isPinned", false),
-                        isDeleted = obj.optBoolean("isDeleted", false),
+                        isDeleted = false,
                         colorHex = obj.optString("colorHex", "#10B981"),
                         createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
                         updatedAt = obj.optLong("updatedAt", System.currentTimeMillis())

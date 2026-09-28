@@ -181,9 +181,25 @@ class GameNotesRepository(
         } else {
             note.blocksJson
         }
+        val updatedInternalTabs = note.internalTabs.map { tab ->
+            if (tab.blocksJson.isNotBlank() && tab.blocksJson != "[]") {
+                try {
+                    val blocks = DocumentBlock.jsonToList(tab.blocksJson)
+                    val newBlocks = blocks.map { b ->
+                        if (b.type == BlockType.CHECKLIST && b.id == todoId) {
+                            b.copy(isChecked = !b.isChecked)
+                        } else b
+                    }
+                    tab.copy(blocksJson = DocumentBlock.listToJson(newBlocks))
+                } catch (_: Exception) {
+                    tab
+                }
+            } else tab
+        }
         dao.updateNote(note.copy(
             todoItems = updatedTodos,
             blocksJson = updatedBlocksJson,
+            internalTabs = updatedInternalTabs,
             updatedAt = System.currentTimeMillis()
         ))
     }

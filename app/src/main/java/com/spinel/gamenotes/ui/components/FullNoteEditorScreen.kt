@@ -126,7 +126,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.spinel.gamenotes.data.BlockType
 import com.spinel.gamenotes.data.DocumentBlock
@@ -563,7 +562,10 @@ fun FullNoteEditorScreen(
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val isKeyboardOpen = WindowInsets.ime.getBottom(density) > 0
+    val imeInsets = WindowInsets.ime
+    val isKeyboardOpen by androidx.compose.runtime.remember(density, imeInsets) {
+        androidx.compose.runtime.derivedStateOf { imeInsets.getBottom(density) > 0 }
+    }
     val isLandscapeKeyboard = isLandscape && isKeyboardOpen
 
     Scaffold(
@@ -899,18 +901,78 @@ fun FullNoteEditorScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        // Requirement 2: Full-Page Free Canvas Rich Text Editor (Like Google Keep / Notion)
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .imePadding()
-                .padding(horizontal = if (isLandscapeKeyboard) 8.dp else 20.dp)
-                .testTag("full_note_canvas"),
-            verticalArrangement = Arrangement.spacedBy(if (isLandscapeKeyboard) 4.dp else 14.dp)
-        ) {
-            item(key = "note_title_and_tabs_header") {
+        if (isLandscapeKeyboard) {
+            // Requirement 6: Landscape Keyboard UX optimization
+            // In landscape with keyboard open, hide all bars and display ONLY the note's TextField expanded to fill available space with vertical scroll
+            val textBlockIndex = if (activeFocusedBlockIndex in 0 until blocks.size && blocks[activeFocusedBlockIndex].type == BlockType.TEXT) {
+                activeFocusedBlockIndex
+            } else {
+                val firstTxt = blocks.indexOfFirst { it.type == BlockType.TEXT }
+                if (firstTxt != -1) firstTxt else {
+                    blocks.add(0, DocumentBlock(type = BlockType.TEXT, text = ""))
+                    0
+                }
+            }
+            val block = blocks[textBlockIndex]
+            var textVal by remember(block.id) {
+                mutableStateOf(TextFieldValue(text = block.text, selection = TextRange(block.text.length)))
+            }
+            if (textVal.text != block.text) {
+                textVal = textVal.copy(text = block.text)
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .imePadding()
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                BasicTextField(
+                    value = textVal,
+                    onValueChange = { newTfv ->
+                        textVal = newTfv
+                        if (block.text != newTfv.text) {
+                            blocks[textBlockIndex] = block.copy(text = newTfv.text)
+                        }
+                        activeFocusedBlockIndex = textBlockIndex
+                        activeCursorPosition = newTfv.selection.start
+                    },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onBackground,
+                        lineHeight = 24.sp
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    decorationBox = { innerTextField ->
+                        if (textVal.text.isEmpty()) {
+                            Text(
+                                text = strings.writeNoteContentPlaceholder,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f)
+                                )
+                            )
+                        }
+                        innerTextField()
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .testTag("landscape_note_editor_input")
+                )
+            }
+        } else {
+            // Normal LazyColumn canvas
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .imePadding()
+                    .padding(horizontal = 20.dp)
+                    .testTag("full_note_canvas"),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                item(key = "note_title_and_tabs_header") {
                 if (!isLandscapeKeyboard) {
                     Spacer(modifier = Modifier.height(10.dp))
                     // Large Document Title (Borderless, modern Notion style - strictly single line)
@@ -1771,8 +1833,35 @@ fun FullNoteEditorScreen(
                         b.copy(secondImageUri = newUri)
                     }
                 }
+                // Also update any internal tab containing this image URI
+                for (tIdx in tabs.indices) {
+                    val tab = tabs[tIdx]
+                    if (tab.blocksJson.isNotBlank() && tab.blocksJson != "[]") {
+                        try {
+                            val tabBlocks = DocumentBlock.jsonToList(tab.blocksJson)
+                            var tabChanged = false
+                            val updatedTabBlocks = tabBlocks.map { b ->
+                                if (b.type == BlockType.IMAGE && (b.imageUri == currentZoomed || b.secondImageUri == currentZoomed)) {
+                                    tabChanged = true
+                                    b.copy(
+                                        imageUri = if (b.imageUri == currentZoomed) newUri else b.imageUri,
+                                        secondImageUri = if (b.secondImageUri == currentZoomed) newUri else b.secondImageUri
+                                    )
+                                } else b
+                            }
+                            if (tabChanged) {
+                                tabs[tIdx] = tab.copy(blocksJson = DocumentBlock.listToJson(updatedTabBlocks))
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+                syncCurrentTabContent()
+                try {
+                    saveCurrent()
+                } catch (_: Exception) {}
                 zoomedImageUri = null
             }
         )
     }
+}
 }

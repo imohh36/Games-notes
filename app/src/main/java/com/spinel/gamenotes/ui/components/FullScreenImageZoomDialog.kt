@@ -168,9 +168,18 @@ fun FullScreenImageZoomDialog(
                         } else {
                             // Draw mode: 1 finger strictly for drawing, 2 fingers for pinch-to-zoom & pan
                             awaitEachGesture {
-                                awaitFirstDown(requireUnconsumed = false)
+                                val down = awaitFirstDown(requireUnconsumed = false)
                                 var isMultiTouchZooming = false
                                 var isDrawingStroke = false
+
+                                val firstPt = Offset(
+                                    x = (down.position.x - offset.x) / scale,
+                                    y = (down.position.y - offset.y) / scale
+                                )
+                                currentPoints.clear()
+                                currentPoints.add(firstPt)
+                                isDrawingStroke = true
+                                down.consume()
 
                                 do {
                                     val event = awaitPointerEvent()
@@ -563,31 +572,74 @@ fun FullScreenImageZoomDialog(
                                         coroutineScope.launch {
                                             try {
                                                 val savedUri = withContext(Dispatchers.IO) {
-                                                    // Render base image + drawing paths into a new Bitmap
                                                     val options = BitmapFactory.Options().apply {
+                                                        inMutable = true
                                                         inPreferredConfig = Bitmap.Config.ARGB_8888
                                                     }
-                                                    val inputStream = when {
-                                                        imageUri.startsWith("file://") -> {
-                                                            val path = Uri.parse(imageUri).path
-                                                            if (path != null) java.io.FileInputStream(java.io.File(path)) else null
+                                                    val baseBitmap: Bitmap? = try {
+                                                        when {
+                                                            imageUri.startsWith("file://") -> {
+                                                                val path = Uri.parse(imageUri).path ?: imageUri.removePrefix("file://")
+                                                                BitmapFactory.decodeFile(path, options)
+                                                            }
+                                                            imageUri.startsWith("/") -> {
+                                                                BitmapFactory.decodeFile(imageUri, options)
+                                                            }
+                                                            imageUri.startsWith("content://") -> {
+                                                                context.contentResolver.openInputStream(Uri.parse(imageUri))?.use {
+                                                                    BitmapFactory.decodeStream(it, null, options)
+                                                                }
+                                                            }
+                                                            else -> {
+                                                                val u = Uri.parse(imageUri)
+                                                                if (u.scheme == "content") {
+                                                                    context.contentResolver.openInputStream(u)?.use {
+                                                                        BitmapFactory.decodeStream(it, null, options)
+                                                                    }
+                                                                } else {
+                                                                    val path = u.path ?: imageUri.removePrefix("file://")
+                                                                    BitmapFactory.decodeFile(path, options)
+                                                                }
+                                                            }
                                                         }
-                                                        else -> context.contentResolver.openInputStream(Uri.parse(imageUri))
+                                                    } catch (_: Exception) {
+                                                        null
+                                                    } ?: run {
+                                                        try {
+                                                            val loader = coil.ImageLoader(context)
+                                                            val request = coil.request.ImageRequest.Builder(context)
+                                                                .data(imageUri)
+                                                                .allowHardware(false)
+                                                                .build()
+                                                            val result = (loader.execute(request) as? coil.request.SuccessResult)?.drawable
+                                                            (result as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                                                                ?: result?.let { drawable ->
+                                                                    val bmp = Bitmap.createBitmap(
+                                                                        drawable.intrinsicWidth.coerceAtLeast(1),
+                                                                        drawable.intrinsicHeight.coerceAtLeast(1),
+                                                                        Bitmap.Config.ARGB_8888
+                                                                    )
+                                                                    val c = android.graphics.Canvas(bmp)
+                                                                    drawable.setBounds(0, 0, c.width, c.height)
+                                                                    drawable.draw(c)
+                                                                    bmp
+                                                                }
+                                                        } catch (_: Exception) {
+                                                            null
+                                                        }
                                                     }
-                                                    val baseBitmap = BitmapFactory.decodeStream(inputStream, null, options)
-                                                    inputStream?.close()
 
                                                     if (baseBitmap != null) {
-                                                        val mutableBitmap = baseBitmap.copy(Bitmap.Config.ARGB_8888, true)
+                                                        val mutableBitmap = if (baseBitmap.isMutable) baseBitmap else baseBitmap.copy(Bitmap.Config.ARGB_8888, true)
                                                         val canvas = android.graphics.Canvas(mutableBitmap)
 
                                                         // Accurately map drawing coordinates onto the native bitmap using ContentScale.Fit aspect frame
-                                                        val cW = containerSize.width.coerceAtLeast(1).toFloat()
-                                                        val cH = containerSize.height.coerceAtLeast(1).toFloat()
-                                                        val bmW = mutableBitmap.width.toFloat()
-                                                        val bmH = mutableBitmap.height.toFloat()
+                                                        val bmW = mutableBitmap.width.toFloat().coerceAtLeast(1f)
+                                                        val bmH = mutableBitmap.height.toFloat().coerceAtLeast(1f)
+                                                        val cW = if (containerSize.width > 0) containerSize.width.toFloat() else bmW
+                                                        val cH = if (containerSize.height > 0) containerSize.height.toFloat() else bmH
 
-                                                        val fitScale = minOf(cW / bmW, cH / bmH)
+                                                        val fitScale = minOf(cW / bmW, cH / bmH).coerceAtLeast(0.001f)
                                                         val displayedW = bmW * fitScale
                                                         val displayedH = bmH * fitScale
                                                         val offsetX = (cW - displayedW) / 2f
@@ -704,20 +756,15 @@ fun FullScreenImageZoomDialog(
         }
     }
 
-    val registryOwner = androidx.activity.compose.LocalActivityResultRegistryOwner.current
-    if (registryOwner != null) {
-        Dialog(
-            onDismissRequest = {
-                if (!isSaving) onDismiss()
-            },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
-            )
-        ) {
-            dialogContent()
-        }
-    } else {
+    androidx.activity.compose.BackHandler(enabled = true) {
+        if (!isSaving) onDismiss()
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .clickable(enabled = true, onClick = {})
+    ) {
         dialogContent()
     }
 }

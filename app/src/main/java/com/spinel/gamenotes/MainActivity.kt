@@ -266,6 +266,8 @@ fun GameNotesMainScreen() {
     val aiModel by AppSettingsPreferences.aiModel.collectAsState()
     val isMiniTaskListEnabled by AppSettingsPreferences.isMiniTaskListEnabled.collectAsState()
     val userGeminiApiKey by AppSettingsPreferences.userGeminiApiKey.collectAsState()
+    val pinnedFloatingNoteId by AppSettingsPreferences.pinnedFloatingNoteId.collectAsState()
+    val pinnedFloatingTabIndex by AppSettingsPreferences.pinnedFloatingTabIndex.collectAsState()
     val chatMessages by repository.allChatMessages.collectAsState(initial = emptyList())
     var showChatHistoryDialog by remember { mutableStateOf(false) }
     var showClearChatConfirm by remember { mutableStateOf(false) }
@@ -311,7 +313,6 @@ fun GameNotesMainScreen() {
                         strings.restoreSuccessMsg(result.notesCount, result.tabsCount)
                     }
                     Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                    (context as? android.app.Activity)?.recreate()
                 } else {
                     Toast.makeText(
                         context,
@@ -403,12 +404,14 @@ fun GameNotesMainScreen() {
                     coroutineScope.launch {
                         try {
                             if (noteToEdit == null) {
-                                repository.insertNote(savedNote)
+                                val newId = repository.insertNote(savedNote)
+                                if (newId > 0) {
+                                    noteToEdit = savedNote.copy(id = newId)
+                                }
                             } else {
                                 repository.updateNote(savedNote)
+                                noteToEdit = savedNote
                             }
-                            noteToEdit = null
-                            activeFullEditorType = null
                         } catch (e: Exception) {
                             android.util.Log.e("MainActivity", "Error saving checklist note", e)
                         }
@@ -472,12 +475,14 @@ fun GameNotesMainScreen() {
                     coroutineScope.launch {
                         try {
                             if (noteToEdit == null) {
-                                repository.insertNote(savedNote)
+                                val newId = repository.insertNote(savedNote)
+                                if (newId > 0) {
+                                    noteToEdit = savedNote.copy(id = newId)
+                                }
                             } else {
                                 repository.updateNote(savedNote)
+                                noteToEdit = savedNote
                             }
-                            noteToEdit = null
-                            activeFullEditorType = null
                         } catch (e: Exception) {
                             android.util.Log.e("MainActivity", "Error saving note", e)
                         }
@@ -2347,10 +2352,10 @@ fun GameNotesMainScreen() {
                     } // End of Box
                 }
             } else {
-                itemsIndexed(filteredNotes, key = { _, note -> note.id }) { index, note ->
+                itemsIndexed(filteredNotes, key = { _, note -> note.id }, contentType = { _, note -> note.noteType }) { index, note ->
                     NoteCard(
                         note = note,
-                        activeInternalTabIndex = noteActiveTabs[note.id] ?: (if (AppSettingsPreferences.pinnedFloatingNoteId.value == note.id) AppSettingsPreferences.pinnedFloatingTabIndex.value else 0),
+                        activeInternalTabIndex = noteActiveTabs[note.id] ?: (if (pinnedFloatingNoteId == note.id) pinnedFloatingTabIndex else 0),
                         onTabSelected = { tabIdx ->
                             noteActiveTabs = noteActiveTabs + (note.id to tabIdx)
                         },
@@ -2366,7 +2371,7 @@ fun GameNotesMainScreen() {
                         onEdit = { n ->
                             AdManager.trackNoteAction(context as? Activity) {
                                 noteToEdit = n
-                                noteEditingInitialTabIndex = noteActiveTabs[n.id] ?: (if (AppSettingsPreferences.pinnedFloatingNoteId.value == n.id) AppSettingsPreferences.pinnedFloatingTabIndex.value else 0)
+                                noteEditingInitialTabIndex = noteActiveTabs[n.id] ?: (if (pinnedFloatingNoteId == n.id) pinnedFloatingTabIndex else 0)
                                 activeFullEditorType = if (n.isTodoList) NoteType.TODO_LIST else NoteType.REGULAR
                             }
                         },
@@ -2433,9 +2438,28 @@ fun GameNotesMainScreen() {
                                     } else {
                                         n.blocksJson
                                     }
+                                    val updatedInternalTabs = n.internalTabs.map { tab ->
+                                        if (tab.blocksJson.isNotBlank() && tab.blocksJson != "[]") {
+                                            try {
+                                                val blocks = DocumentBlock.jsonToList(tab.blocksJson)
+                                                val newBlocks = blocks.map { b ->
+                                                    if (b.type == BlockType.IMAGE) {
+                                                        var u = b
+                                                        if (b.imageUri == oldUri) u = u.copy(imageUri = newUri)
+                                                        if (b.secondImageUri == oldUri) u = u.copy(secondImageUri = newUri)
+                                                        u
+                                                    } else b
+                                                }
+                                                tab.copy(blocksJson = DocumentBlock.listToJson(newBlocks))
+                                            } catch (_: Exception) {
+                                                tab
+                                            }
+                                        } else tab
+                                    }
                                     repository.updateNote(n.copy(
                                         imageUris = updatedImageUris,
                                         blocksJson = updatedBlocksJson,
+                                        internalTabs = updatedInternalTabs,
                                         updatedAt = System.currentTimeMillis()
                                     ))
                                 } catch (e: Exception) {
